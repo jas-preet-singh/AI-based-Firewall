@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firewall Dashboard</title>
+    
+</head>
+<body class="bg-gray-900 text-white">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <div class="container mx-auto p-6">
+        <h1 class="text-3xl font-bold mb-6 text-center">🚀 Firewall Dashboard</h1>
+
+        <!-- Firewall Rules Management -->
+        <div class="bg-gray-800 p-4 rounded-lg mb-6">
+            <h2 class="text-xl font-bold mb-4">Firewall Policies</h2>
+
+            <form id="policy-form">
+                <div class="grid grid-cols-3 gap-4 mb-4">
+                    <input type="text" id="new-ip" placeholder="Block IP" class="p-2 rounded bg-gray-700 text-white">
+                    <input type="text" id="new-domain" placeholder="Block Domain" class="p-2 rounded bg-gray-700 text-white">
+                    <input type="text" id="new-protocol" placeholder="Block Protocol (TCP/UDP)" class="p-2 rounded bg-gray-700 text-white">
+                </div>
+                <button type="submit" class="bg-blue-500 px-4 py-2 rounded">Add Rule</button>
+            </form>
+
+            <h3 class="text-lg font-bold mt-4">Blocked Rules:</h3>
+            <ul id="rules-list" class="list-disc pl-6 mt-2"></ul>
+        </div>
+
+        <!-- Logs Table -->
+        <table class="table-auto w-full border-collapse border border-gray-300">
+            <thead>
+                <tr class="bg-gray-700">
+                    <th class="border px-4 py-2">IP</th>
+                    <th class="border px-4 py-2">Domain</th>
+                    <th class="border px-4 py-2">App</th>
+                    <th class="border px-4 py-2">Decision</th>
+                    <th class="border px-4 py-2">Reason</th>
+                    <th class="border px-4 py-2">Timestamp</th>
+                </tr>
+            </thead>
+            <tbody id="logs-table"></tbody>
+        </table>
+    </div>
+
+    <script>
+        async function fetchLogs() {
+            const res = await fetch("/logs");
+            const logs = await res.json();
+            const table = document.getElementById("logs-table");
+            table.innerHTML = logs.map(log => `
+                <tr class="border">
+                    <td class="border px-4 py-2">${log.ip}</td>
+                    <td class="border px-4 py-2">${log.domain}</td>
+                    <td class="border px-4 py-2">${log.app}</td>
+                    <td class="border px-4 py-2 ${log.decision === 'block' ? 'text-red-500' : 'text-green-500'}">
+                        ${log.decision}
+                    </td>
+                    <td class="border px-4 py-2">${log.reason}</td>
+                    <td class="border px-4 py-2">${new Date(log.timestamp).toLocaleString()}</td>
+                </tr>
+            `).join("");
+        }
+
+        async function fetchPolicies() {
+            const res = await fetch("/policies");
+            const policies = await res.json();
+            const list = document.getElementById("rules-list");
+            list.innerHTML = `
+                <li>Blocked IPs: ${policies.blocked_ips.join(", ") || "None"}</li>
+                <li>Blocked Domains: ${policies.blocked_domains.join(", ") || "None"}</li>
+                <li>Blocked Protocols: ${policies.blocked_protocols.join(", ") || "None"}</li>
+            `;
+        }
+
+        document.getElementById("policy-form").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const ip = document.getElementById("new-ip").value;
+            const domain = document.getElementById("new-domain").value;
+            const protocol = document.getElementById("new-protocol").value;
+
+            await fetch("/update-policy", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ip, domain, protocol })
+            });
+
+            fetchPolicies();
+        });
+
+        setInterval(() => { fetchLogs(); fetchPolicies(); }, 5000);
+        fetchLogs();
+        fetchPolicies();
+    </script>
+</body>
+</html>
